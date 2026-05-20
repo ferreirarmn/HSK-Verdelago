@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HSK — Gestão de Grupo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#ffffff;--bg2:#F7F7F5;--bg3:#EFEFEC;
+  --text:#1A1A18;--text2:#5F5E5A;--text3:#888780;
+  --border:#E0DED8;--border2:#D3D1C7;
+  --blue:#185FA5;--blue-bg:#E6F1FB;--blue-mid:#378ADD;
+  --green:#1D9E75;--green-bg:#EAF3DE;
+  --red:#A32D2D;--red-bg:#FCEBEB;
+  --amber:#854F0B;--amber-bg:#FAEEDA;
+  --purple:#534AB7;--purple-bg:#EEEDFE;
+  --coral:#993C1D;--coral-bg:#FAECE7;
+  --radius:8px;--radius-lg:12px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+
+/* ── LAYOUT ── */
+.shell{display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--bg);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:50}
+.topbar-brand{font-size:15px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px}
+.topbar-brand span{font-size:12px;font-weight:400;color:var(--text3);padding:2px 8px;background:var(--bg3);border-radius:20px}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.main{flex:1;padding:20px 24px;max-width:1100px;margin:0 auto;width:100%}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab.active{color:var(--text);border-bottom-color:var(--blue-mid)}
+.tab:hover:not(.active){color:var(--text)}
+.tab-count{font-size:11px;background:var(--bg3);color:var(--text3);padding:1px 6px;border-radius:10px}
+.tab.active .tab-count{background:var(--blue-bg);color:var(--blue)}
+
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:20px}
+.metric{background:var(--bg2);border-radius:var(--radius);padding:10px 12px;border:1px solid transparent;transition:all .15s;cursor:default}
+.metric-label{font-size:11px;color:var(--text3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em}
+.metric-val{font-size:22px;font-weight:600}
+.m-green{color:var(--green)}.m-red{color:var(--red)}.m-amber{color:var(--amber)}.m-purple{color:var(--purple)}.m-blue{color:var(--blue)}.m-coral{color:var(--coral)}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar input[type=text]{flex:1;min-width:180px;padding:7px 11px 7px 34px;font-size:13px;border-radius:var(--radius);border:1px solid var(--border2);background:var(--bg);color:var(--text);transition:border-color .15s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888780' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:10px center;background-size:16px}
+.toolbar input:focus{outline:none;border-color:var(--blue-mid)}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{font-size:11px;padding:4px 10px;border-radius:20px;cursor:pointer;border:1px solid var(--border2);background:var(--bg2);color:var(--text2);font-weight:500;transition:all .12s;white-space:nowrap}
+.chip:hover{border-color:var(--border2);background:var(--bg3)}
+.chip.on{background:var(--blue-bg);border-color:#85B7EB;color:var(--blue)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 14px;font-size:13px;font-weight:500;border-radius:var(--radius);cursor:pointer;border:1px solid;transition:all .12s;white-space:nowrap;line-height:1.3}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+.btn-default{background:var(--bg2);border-color:var(--border2);color:var(--text)}.btn-default:hover{background:var(--bg3)}
+.btn-primary{background:var(--blue-mid);border-color:var(--blue);color:#fff}.btn-primary:hover{background:var(--blue)}
+.btn-green{background:var(--green-bg);border-color:#97C459;color:#27500A}.btn-green:hover{background:#C0DD97}
+.btn-red{background:var(--red-bg);border-color:#F09595;color:#791F1F}.btn-red:hover{background:#F7C1C1}
+.btn-blue{background:var(--blue-bg);border-color:#85B7EB;color:#0C447C}.btn-blue:hover{background:#B5D4F4}
+.btn-amber{background:var(--amber-bg);border-color:#FAC775;color:#633806}.btn-amber:hover{background:#EF9F27;color:#fff}
+.btn-excel{background:#217346;border-color:#155a2e;color:#fff}.btn-excel:hover{background:#155a2e}
+.btn-ghost{background:none;border-color:transparent;color:var(--text2)}.btn-ghost:hover{background:var(--bg2);color:var(--text)}
+.btn-icon{padding:6px;width:32px;height:32px}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:500;font-size:11px;color:var(--text3);padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;user-select:none}
+th.sortable{cursor:pointer}th.sortable:hover{color:var(--text)}
+th .sort-icon{opacity:.4;margin-left:3px;font-size:10px}
+th.sort-asc .sort-icon::after{content:'↑';opacity:1}
+th.sort-desc .sort-icon::after{content:'↓';opacity:1}
+td{padding:8px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#FAFAF8}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.b-green{background:var(--green-bg);color:#27500A}.b-red{background:var(--red-bg);color:#791F1F}
+.b-amber{background:var(--amber-bg);color:#633806}.b-blue{background:var(--blue-bg);color:#0C447C}
+.b-gray{background:var(--bg3);color:var(--text2)}.b-purple{background:var(--purple-bg);color:#3C3489}
+.b-coral{background:var(--coral-bg);color:#712B13}
+
+/* ── AVATAR ── */
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.av-sm{width:22px;height:22px;font-size:9px}
+.av-timing{background:var(--blue-bg);color:var(--blue)}.av-talenter{background:var(--green-bg);color:var(--green)}
+.av-serlima{background:var(--coral-bg);color:var(--coral)}.av-teste{background:var(--purple-bg);color:var(--purple)}
+
+/* ── STEP DOTS ── */
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bg3);border:1px solid var(--border2)}
+.dot.done{background:var(--green);border-color:var(--green)}.dot.cur{background:var(--blue-mid);border-color:var(--blue-mid)}
+
+/* ── ATTENDANCE ── */
+.att-btn{width:28px;height:28px;font-size:11px;font-weight:600;border-radius:5px;border:1px solid var(--border2);cursor:pointer;background:var(--bg2);color:var(--text3);transition:all .1s}
+.att-btn:hover{border-color:var(--border)}
+.att-btn.P{background:var(--green-bg);border-color:#97C459;color:#27500A}
+.att-btn.F{background:var(--red-bg);border-color:#F09595;color:#791F1F}
+.att-btn.D{background:var(--amber-bg);border-color:#FAC775;color:#633806}
+.att-today{outline:2px solid var(--blue-mid);outline-offset:1px;border-radius:6px}
+
+/* ── ESCALA ── */
+.escala-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.week-label{font-size:14px;font-weight:500;min-width:220px;text-align:center}
+.day-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:10px;overflow:hidden}
+.day-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.day-card-header:hover{background:var(--bg3)}
+.day-date{font-size:13px;font-weight:600}
+.day-weekday{font-size:12px;color:var(--text3);text-transform:uppercase;margin-left:6px}
+.day-badges{display:flex;gap:6px;align-items:center}
+.day-card-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px 14px}
+.day-card.today .day-card-header{border-left:3px solid var(--blue-mid)}
+.shift-block{background:var(--bg2);border-radius:var(--radius);padding:8px 10px}
+.shift-title{font-size:11px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.04em}
+.shift-person{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid var(--border);font-size:12px}
+.shift-person:last-child{border-bottom:none}
+
+/* ── EXPORT DRAWER ── */
+.export-bar{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.export-sheets{display:flex;gap:6px;flex-wrap:wrap}
+.ex-chip{cursor:pointer;border:1px solid var(--border2);border-radius:var(--radius);padding:5px 12px;font-size:12px;font-weight:500;background:var(--bg);color:var(--text2);transition:all .12s;display:inline-flex;align-items:center;gap:5px}
+.ex-chip:hover{border-color:var(--border)}
+.ex-chip.on{background:var(--blue-bg);border-color:#85B7EB;color:var(--blue)}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(30,30,28,.5);display:flex;align-items:flex-start;justify-content:center;z-index:200;padding:40px 16px;overflow-y:auto}
+.modal{background:#fff;border-radius:var(--radius-lg);border:1px solid var(--border2);width:500px;max-width:100%}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.mhead h3{font-size:15px;font-weight:600;color:var(--text)}
+.mbody{padding:18px 20px}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;padding:12px 20px;border-top:1px solid var(--border);background:var(--bg2);border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:5px}
+.field input[type=text],.field input[type=date],.field select,.field textarea{width:100%;padding:8px 11px;font-size:13px;border-radius:var(--radius);border:1px solid var(--border2);background:#fff;color:var(--text);transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--blue-mid)}
+.field textarea{resize:vertical;min-height:54px;font-family:inherit}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sep{border:none;border-top:1px solid var(--border);margin:14px 0}
+
+/* status selector */
+.status-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.sopt{cursor:pointer;border:1.5px solid var(--border2);border-radius:var(--radius);padding:12px 8px;text-align:center;transition:all .15s;background:#fff}
+.sopt:hover{border-color:var(--border)}
+.sopt.on-Ativo{border-color:var(--green);background:var(--green-bg)}
+.sopt.on-Teste{border-color:var(--purple);background:var(--purple-bg)}
+.sopt.on-Inativo{border-color:var(--red);background:var(--red-bg)}
+.sopt-icon{font-size:22px;margin-bottom:4px}
+.sopt-label{font-size:12px;font-weight:500;color:var(--text)}
+
+/* company chips */
+.co-grid{display:flex;gap:6px;flex-wrap:wrap}
+.co{cursor:pointer;border:1.5px solid var(--border2);border-radius:var(--radius);padding:6px 14px;font-size:12px;font-weight:500;background:#fff;color:var(--text2);transition:all .15s}
+.co:hover{border-color:var(--border)}
+.co.T{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.co.Ta{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.co.S{border-color:var(--coral);background:var(--coral-bg);color:var(--coral)}
+
+/* cap toggles */
+.caps{display:flex;flex-wrap:wrap;gap:5px}
+.cap{cursor:pointer;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:12px;background:var(--bg2);color:var(--text2);transition:all .12s;display:inline-flex;align-items:center;gap:3px}
+.cap.on{background:var(--blue-bg);border-color:#85B7EB;color:var(--blue);font-weight:500}
+
+/* teste block */
+.teste-zone{background:var(--purple-bg);border:1px solid #AFA9EC;border-radius:var(--radius);padding:12px;margin-top:2px}
+.teste-zone .field label{color:#3C3489}
+.teste-zone .field input,.teste-zone .field select,.teste-zone .field textarea{border-color:#AFA9EC;background:#fff}
+
+/* ── DELETE CONFIRM ── */
+.del-confirm{display:flex;align-items:center;gap:6px;background:var(--red-bg);border:1px solid #F09595;border-radius:var(--radius);padding:4px 8px}
+.del-confirm span{font-size:12px;color:#791F1F;font-weight:500}
+
+/* ── TOAST ── */
+.toasts{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:#1A1A18;color:#fff;padding:10px 16px;border-radius:var(--radius);font-size:13px;display:flex;align-items:center;gap:8px;animation:toastIn .2s ease;max-width:320px;pointer-events:all}
+.toast.ok{background:#0F6E56}.toast.err{background:#A32D2D}.toast.warn{background:#854F0B}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── MISC ── */
+.section-hd{font-size:14px;font-weight:600;color:var(--text);margin-bottom:10px;margin-top:20px}
+.section-hd:first-child{margin-top:0}
+.empty{text-align:center;padding:3rem 1rem;color:var(--text3)}
+.empty i{font-size:36px;display:block;margin-bottom:8px;opacity:.4}
+.progress-bar{width:100%;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:3px}
+.progress-fill{height:100%;border-radius:3px}
+.info-row{background:var(--bg2);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.no-saved{background:var(--amber-bg);border:1px solid #FAC775;border-radius:var(--radius);padding:8px 12px;font-size:12px;color:#633806;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.storage-btns{display:flex;gap:6px;align-items:center;margin-left:auto}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <i class="ti ti-building-hotel" style="font-size:18px;color:#378ADD"></i>
+      HSK <span>Gestão de Grupo</span>
+    </div>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </header>
+  <main class="main">
+    <div id="root"></div>
+  </main>
+</div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const CAPS=['Can_Supervisão','Can_Andares2','Can_Áreas','Can_Turndown','Can_Valet'];
+const CAP_L={'Can_Supervisão':'Supervisão','Can_Andares2':'Andares 2','Can_Áreas':'Áreas','Can_Turndown':'Turndown','Can_Valet':'Valet'};
+const ROLES=['Andares','Valete','Turndown','Áreas','Governanta'];
+const COMPANIES=['Timing','Talenter','Serlima'];
+const STEPS=['Integração','Avaliação','Conclusão'];
+const DATES=['2026-05-11','2026-05-12','2026-05-13','2026-05-14','2026-05-15','2026-05-16','2026-05-17','2026-05-18','2026-05-19','2026-05-20','2026-05-21','2026-05-22','2026-05-23','2026-05-24','2026-05-25','2026-05-26','2026-05-27','2026-05-28','2026-05-29','2026-05-30','2026-05-31'];
+const NEEDS={'2026-05-11':6,'2026-05-12':10,'2026-05-13':6,'2026-05-14':9,'2026-05-15':9,'2026-05-16':13,'2026-05-17':13,'2026-05-18':13,'2026-05-19':9,'2026-05-20':10,'2026-05-21':13,'2026-05-22':13,'2026-05-23':15,'2026-05-24':13,'2026-05-25':13,'2026-05-26':14,'2026-05-27':14,'2026-05-28':12,'2026-05-29':17,'2026-05-30':27,'2026-05-31':28};
+const TODAY='2026-05-19';
+
+const SEED=[
+  {id:1,name:"Viviana Cá",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:2,name:"Quinta Sanha",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:3,name:"Nimeriam Intchama",company:"Talenter",role:"Andares",status:"Inativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:4,name:"Cadidjatu Camara",company:"Talenter",role:"Andares",status:"Inativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:5,name:"Lucia Mafumo",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:6,name:"Esperança Nhaga",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:7,name:"Miriam Okfor",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:8,name:"Miriam Siga",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:9,name:"N'Djuda Có",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:10,name:"Md Rahman - Mijanur",company:"Talenter",role:"Valete",status:"Ativo",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:11,name:"Nhima Darame",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:12,name:"Uri Conde",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:13,name:"Amandeep Kaur",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:14,name:"Lovepreet Kaur",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:15,name:"Kavita Rani",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:16,name:"Isabel Elias",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:17,name:"Jioty KC",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:18,name:"Emorinda",company:"Timing",role:"Turndown",status:"Ativo",caps:['Can_Turndown'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:19,name:"Patrícia Mendes",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:20,name:"Eugénia Manga",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:21,name:"Joice Baptista",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"Folguista 2x/semana",testStep:0,testStartDate:"",testNotes:""},
+  {id:22,name:"Benedita Mendes",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:23,name:"Antónia Domingos",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"Folguista 2 dias/semana",testStep:0,testStartDate:"",testNotes:""},
+  {id:24,name:"Leopoldina Gama",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:25,name:"Syed Shah",company:"Timing",role:"Valete",status:"Ativo",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:26,name:"Navejot Kumar",company:"Timing",role:"Valete",status:"Ativo",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:27,name:"Niyas - Mohamed Kottoth",company:"Timing",role:"Valete",status:"Inativo",caps:['Can_Valet'],notes:"Desistência",testStep:0,testStartDate:"",testNotes:""},
+  {id:28,name:"Roseane",company:"Timing",role:"Andares",status:"Inativo",caps:['Can_Andares2'],notes:"Desistência",testStep:0,testStartDate:"",testNotes:""},
+  {id:29,name:"Manuela Vaz",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:30,name:"Babo Vaz",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"Até 15/05",testStep:0,testStartDate:"",testNotes:""},
+  {id:31,name:"Teste_Timing_01",company:"Timing",role:"Andares",status:"Teste",caps:[],notes:"",testStep:1,testStartDate:"2026-05-11",testNotes:""},
+  {id:32,name:"Teste_Timing_02",company:"Timing",role:"Andares",status:"Teste",caps:[],notes:"",testStep:0,testStartDate:"2026-05-11",testNotes:""},
+  {id:33,name:"Teste_Talenter_01",company:"Talenter",role:"Andares",status:"Teste",caps:[],notes:"",testStep:2,testStartDate:"2026-05-11",testNotes:""},
+  {id:34,name:"Teste_Talenter_02",company:"Talenter",role:"Andares",status:"Teste",caps:[],notes:"",testStep:1,testStartDate:"2026-05-13",testNotes:""},
+  // ── Importados do ficheiro Livro1.xlsx ──
+  {id:35,name:"Neia Vaz",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"Até 15/06",testStep:0,testStartDate:"",testNotes:""},
+  {id:36,name:"Patrícia Alves",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"Até 19/05",testStep:0,testStartDate:"",testNotes:""},
+  {id:37,name:"Jussara Leal",company:"Timing",role:"Governanta",status:"Inativo",caps:['Can_Supervisão'],notes:"Até 19/05",testStep:0,testStartDate:"",testNotes:""},
+  {id:38,name:"MD Saifur Rahman Samad",company:"Timing",role:"Valete",status:"Ativo",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:39,name:"Gita Gidel",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:40,name:"Thalita",company:"Talenter",role:"Governanta",status:"Teste",caps:['Can_Supervisão'],notes:"",testStep:0,testStartDate:"2026-05-19",testNotes:"Início Teste 19/05"},
+  {id:41,name:"Olena Livach",company:"Serlima",role:"Governanta",status:"Inativo",caps:['Can_Supervisão'],notes:"Início Teste a confirmar",testStep:0,testStartDate:"",testNotes:""},
+  {id:42,name:"Ecislene Silva",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2','Can_Áreas'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:43,name:"Regina Vasconcelos",company:"Serlima",role:"Andares",status:"Inativo",caps:['Can_Andares2','Can_Áreas'],notes:"Desistência",testStep:0,testStartDate:"",testNotes:""},
+  {id:44,name:"Adriana Silva",company:"Serlima",role:"Andares",status:"Inativo",caps:['Can_Andares2','Can_Áreas'],notes:"Desistência",testStep:0,testStartDate:"",testNotes:""},
+  {id:45,name:"Aminata Cande",company:"Talenter",role:"Andares",status:"Teste",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"2026-05-20",testNotes:"Teste até 20/05"},
+  {id:46,name:"Romilza Cá",company:"Talenter",role:"Andares",status:"Teste",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"2026-05-20",testNotes:"Teste até 20/05"},
+  {id:47,name:"Dina Matos",company:"Serlima",role:"Andares",status:"Inativo",caps:['Can_Andares2'],notes:"Desistência",testStep:0,testStartDate:"",testNotes:""},
+  {id:48,name:"Viviane Castilho",company:"Serlima",role:"Andares",status:"Teste",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"2026-05-20",testNotes:"Teste até 20/05"},
+  {id:49,name:"Lina Honcharenko",company:"Serlima",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:50,name:"Iudi",company:"Serlima",role:"Andares",status:"Teste",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"2026-05-20",testNotes:"Teste até 20/05"},
+  {id:51,name:"Umo Jalo",company:"Serlima",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:52,name:"Ariana Amaral",company:"Serlima",role:"Andares",status:"Inativo",caps:['Can_Andares2'],notes:"Desistência",testStep:0,testStartDate:"",testNotes:""},
+  {id:53,name:"Sandra Fialho",company:"Serlima",role:"Andares",status:"Teste",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"2026-05-21",testNotes:"Teste até 21/05"},
+  {id:54,name:"Alan Lisboa de Deus",company:"Timing",role:"Valete",status:"Teste",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"2026-05-21",testNotes:"Teste até 21/05"},
+  {id:55,name:"Nin-Oda Agostinho Wangna",company:"Timing",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
+  {id:56,name:"Nunjet",company:"Timing",role:"Valete",status:"Inativo",caps:['Can_Valet'],notes:"Desistência",testStep:0,testStartDate:"",testNotes:""},
+  {id:57,name:"Julia Lopes dos Santos",company:"Timing",role:"Andares",status:"Teste",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"2026-05-21",testNotes:"Teste até 21/05"},
+  {id:58,name:"Aashish Budhathoki",company:"Timing",role:"Valete",status:"Teste",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"2026-05-21",testNotes:"Teste até 21/05"},
+  {id:59,name:"Rakib Md Hasan",company:"Timing",role:"Valete",status:"Teste",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"2026-05-21",testNotes:"Teste até 21/05"},
+  {id:60,name:"Haider Sultan Bajwa",company:"Timing",role:"Valete",status:"Teste",caps:['Can_Valet'],notes:"",testStep:0,testStartDate:"2026-05-21",testNotes:"Teste até 21/05"},
+];
+
+// ── UTILS ──
+const dl=d=>['dom','seg','ter','qua','qui','sex','sáb'][new Date(d+'T12:00:00').getDay()];
+const dlFull=d=>['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][new Date(d+'T12:00:00').getDay()];
+const ini=n=>{const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase()};
+const avCls=p=>p.status==='Teste'?'av-teste':p.company==='Timing'?'av-timing':p.company==='Serlima'?'av-serlima':'av-talenter';
+const coCls=c=>c==='Timing'?'b-blue':c==='Serlima'?'b-coral':'b-green';
+const coChipCls=c=>c==='Timing'?'T':c==='Talenter'?'Ta':'S';
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const blankForm=()=>({name:'',company:'Timing',role:'Andares',status:'Ativo',caps:[],notes:'',testStep:0,testStartDate:'',testNotes:''});
+
+// ── STORAGE ──
+const LS_KEY='hsk_v3';
+function loadState(){
+  try{const s=localStorage.getItem(LS_KEY);if(s)return JSON.parse(s);}catch(e){}
+  return null;
+}
+function saveState(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify({people:S.people,attendance:S.attendance,nextId:S.nextId}));}catch(e){}
+}
+function clearState(){localStorage.removeItem(LS_KEY);toast('Dados limpos. A recarregar...','warn');setTimeout(()=>location.reload(),1200)}
+
+// ── STATE ──
+const saved=loadState();
+let S={
+  tab:'pessoas',
+  people:saved?saved.people:JSON.parse(JSON.stringify(SEED)),
+  nextId:saved?saved.nextId:61,
+  attendance:saved?saved.attendance:{},
+  search:'',sortCol:'name',sortDir:'asc',
+  filterStatus:'all',filterCompany:'all',
+  modal:false,editId:null,form:blankForm(),
+  confirmDel:null,
+  weekIdx:Math.max(0,Math.floor(DATES.indexOf(TODAY)/7)),
+  exportSheets:{pessoas:true,presencas:true,escala:true,resumo:true},
+  hasSaved:!!saved
+};
+
+// ── QUERIES ──
+const getAtt=(pid,d)=>S.attendance[`${pid}_${d}`]||null;
+const nominal=()=>S.people.filter(p=>p.status==='Ativo');
+const emTeste=()=>S.people.filter(p=>p.status==='Teste');
+const ativos=()=>S.people.filter(p=>p.status==='Ativo'||p.status==='Teste');
+
+function filtered(){
+  let pp=[...S.people];
+  if(S.filterStatus!=='all') pp=pp.filter(p=>p.status===S.filterStatus);
+  if(S.filterCompany!=='all') pp=pp.filter(p=>p.company===S.filterCompany);
+  if(S.search) pp=pp.filter(p=>p.name.toLowerCase().includes(S.search.toLowerCase()));
+  pp.sort((a,b)=>{
+    let va=a[S.sortCol]??'',vb=b[S.sortCol]??'';
+    if(typeof va==='string') va=va.toLowerCase(),vb=vb.toLowerCase();
+    return S.sortDir==='asc'?(va>vb?1:va<vb?-1:0):(va<vb?1:va>vb?-1:0);
+  });
+  return pp;
+}
+
+// ── ACTIONS ──
+function persist(){saveState();render()}
+function openAdd(){S.editId=null;S.form=blankForm();S.modal=true;render()}
+function openEdit(p){S.editId=p.id;S.form={name:p.name,company:p.company,role:p.role,status:p.status,caps:[...p.caps],notes:p.notes,testStep:p.testStep||0,testStartDate:p.testStartDate||'',testNotes:p.testNotes||''};S.modal=true;render()}
+function closeModal(){S.modal=false;render()}
+function save(){
+  const f=S.form;if(!f.name.trim()){toast('Insere o nome.','err');return}
+  if(S.editId){const i=S.people.findIndex(p=>p.id===S.editId);if(i>=0)S.people[i]={...S.people[i],...f,name:f.name.trim()};}
+  else S.people.push({id:S.nextId++,...f,name:f.name.trim()});
+  S.modal=false;persist();toast(S.editId?'Pessoa actualizada.':'Pessoa adicionada.','ok');
+}
+function del(id){
+  S.people=S.people.filter(p=>p.id!==id);S.confirmDel=null;persist();toast('Pessoa removida.','ok');
+}
+function advStep(id){const p=S.people.find(x=>x.id===id);if(p&&(p.testStep||0)<2){p.testStep++;persist();toast(`Etapa avançada: ${STEPS[p.testStep]}`,'ok')}}
+function conclude(id){const p=S.people.find(x=>x.id===id);if(!p)return;p.status='Ativo';p.testStep=0;persist();toast(`${p.name} convertido para Ativo.`,'ok')}
+function cycleAtt(pid,d){
+  const k=`${pid}_${d}`;const cur=S.attendance[k]||null;
+  const next=cur===null?'P':cur==='P'?'F':cur==='F'?'D':null;
+  if(next===null)delete S.attendance[k];else S.attendance[k]=next;
+  persist();
+}
+function setSort(col){S.sortDir=S.sortCol===col&&S.sortDir==='asc'?'desc':'asc';S.sortCol=col;render()}
+
+// ── TOAST ──
+function toast(msg,type=''){
+  const t=document.getElementById('toasts');if(!t)return;
+  const el=document.createElement('div');el.className=`toast ${type}`;
+  el.innerHTML=`<i class="ti ti-${type==='ok'?'check':type==='err'?'alert-circle':'info-circle'}"></i>${esc(msg)}`;
+  t.appendChild(el);setTimeout(()=>el.remove(),3000);
+}
+
+// ── EXCEL ──
+function buildExcel(){
+  const wb=XLSX.utils.book_new();
+  if(S.exportSheets.pessoas){
+    const rows=S.people.map(p=>({'Nome':p.name,'Empresa':p.company,'Função':p.role,'Estado':p.status,'Capacidades':p.caps.map(c=>CAP_L[c]).join(', '),'Etapa Teste':p.status==='Teste'?(STEPS[p.testStep||0]||''):'','Início Teste':p.testStartDate||'','Notas Teste':p.testNotes||'','Notas':p.notes||''}));
+    const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:28},{wch:10},{wch:10},{wch:9},{wch:22},{wch:14},{wch:12},{wch:20},{wch:20}];XLSX.utils.book_append_sheet(wb,ws,'Pessoas');
+  }
+  if(S.exportSheets.presencas){
+    const ap=ativos();const rows=ap.map(p=>{const pr=DATES.filter(d=>getAtt(p.id,d)==='P').length;const ab=DATES.filter(d=>getAtt(p.id,d)==='F').length;const row={Nome:p.name,Empresa:p.company,Estado:p.status};DATES.forEach(d=>{row[`${d.slice(5)} ${dl(d)}`]=getAtt(p.id,d)||''});row['Total P']=pr;row['Total F']=ab;row['Taxa %']=(pr+ab)>0?Math.round(pr/(pr+ab)*100)+'%':'';return row;});
+    const ws=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Presenças');
+  }
+  if(S.exportSheets.escala){
+    const nom=nominal();const tst=emTeste();const rows=DATES.map(d=>({'Data':d,'Dia':dlFull(d),'Necessidade':NEEDS[d]||0,'Nominais':nom.length,'Em Teste':tst.length,'Saldo':nom.length-(NEEDS[d]||0),'Manhã 07:30':nom.filter(p=>p.role!=='Turndown').map(p=>p.name).join('; '),'Tarde 14:30':nom.filter(p=>p.role==='Turndown'||p.role==='Valete').map(p=>p.name).join('; '),'Teste':tst.map(p=>`${p.name} (${STEPS[p.testStep||0]})`).join('; ')}));
+    const ws=XLSX.utils.json_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Escala');
+  }
+  if(S.exportSheets.resumo){
+    const ap=ativos();const nom=nominal();const tst=emTeste();const rows=[{S:'RESUMO',C:'Total pessoas',V:S.people.length},{S:'',C:'Ativos',V:ap.length},{S:'',C:'Nominais',V:nom.length},{S:'',C:'Teste',V:tst.length},{S:'',C:'Timing',V:ap.filter(p=>p.company==='Timing').length},{S:'',C:'Talenter',V:ap.filter(p=>p.company==='Talenter').length},{S:'',C:'Serlima',V:ap.filter(p=>p.company==='Serlima').length},{S:'TESTE',C:'',V:''},...tst.map(p=>({S:'',C:p.name,V:`${p.company} | ${STEPS[p.testStep||0]} | ${p.testStartDate||'—'}`})),{S:'CRÍTICOS',C:'',V:''},...DATES.map(d=>({d,gap:(NEEDS[d]||0)-nom.length})).filter(x=>x.gap>0).map(x=>({S:'',C:x.d+' ('+dlFull(x.d)+')',V:`Need ${NEEDS[x.d]} | Nom ${nom.length} | Gap -${x.gap}`}))];
+    const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:14},{wch:24},{wch:36}];XLSX.utils.book_append_sheet(wb,ws,'Resumo');
+  }
+  XLSX.writeFile(wb,`HSK_${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel exportado.','ok');
+}
+
+// ── RENDER HELPERS ──
+function dots(step){return`<span class="dots">${STEPS.map((_,i)=>`<span class="dot ${i<step?'done':i===step?'cur':''}" title="${STEPS[i]}"></span>`).join('')}</span>`}
+function statusBadge(p){
+  if(p.status==='Ativo') return`<span class="badge b-green"><i class="ti ti-check" style="font-size:10px"></i> Ativo</span>`;
+  if(p.status==='Teste') return`<span class="badge b-purple"><i class="ti ti-flask" style="font-size:10px"></i> Teste · ${STEPS[p.testStep||0]}</span>`;
+  return`<span class="badge b-gray">Inativo</span>`;
+}
+function sortIcon(col){return`<span class="sort-icon"></span>`}
+
+// ── EXPORT PANEL ──
+function exportBar(){
+  const s=S.exportSheets;
+  const opts=[{k:'pessoas',l:'Pessoas',i:'ti-users'},{k:'presencas',l:'Presenças',i:'ti-calendar-check'},{k:'escala',l:'Escala',i:'ti-calendar'},{k:'resumo',l:'Resumo',i:'ti-chart-bar'}];
+  return`<div class="export-bar">
+    <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:#1a5c38"><i class="ti ti-file-spreadsheet" style="font-size:16px"></i> Exportar Excel</div>
+    <div class="export-sheets">${opts.map(o=>`<label class="ex-chip ${s[o.k]?'on':''}"><input type="checkbox" ${s[o.k]?'checked':''} onchange="S.exportSheets['${o.k}']=this.checked;render()" style="display:none"><i class="ti ${o.i}"></i> ${o.l}</label>`).join('')}</div>
+    <button class="btn btn-excel btn-sm" onclick="buildExcel()"><i class="ti ti-download"></i> Descarregar</button>
+  </div>`;
+}
+
+// ── MODAL ──
+function modal(){
+  if(!S.modal) return '';
+  const f=S.form;const isT=f.status==='Teste';
+  const statOpts=[{v:'Ativo',i:'ti-check',ic:'#1D9E75'},{v:'Teste',i:'ti-flask',ic:'#534AB7'},{v:'Inativo',i:'ti-x',ic:'#A32D2D'}];
+  return`<div class="overlay" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">
+    <div class="mhead">
+      <h3>${S.editId?'Editar pessoa':'Nova pessoa'}</h3>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Fechar"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="mbody">
+      <div class="field"><label>Nome completo *</label><input type="text" id="f-name" value="${esc(f.name)}" oninput="S.form.name=this.value" placeholder="Ex: Ana Silva" autofocus></div>
+      <hr class="sep">
+      <div class="field"><label>Empresa</label>
+        <div class="co-grid">${COMPANIES.map(c=>`<span class="co ${f.company===c?coChipCls(c):''}" onclick="S.form.company='${c}';patchModal()">${c}</span>`).join('')}</div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Função base</label><select onchange="S.form.role=this.value">${ROLES.map(r=>`<option value="${r}" ${f.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
+        <div class="field"><label>Notas gerais</label><input type="text" value="${esc(f.notes)}" oninput="S.form.notes=this.value" placeholder="Observações..."></div>
+      </div>
+      <hr class="sep">
+      <div class="field"><label>Estado</label>
+        <div class="status-grid">${statOpts.map(o=>`<div class="sopt ${f.status===o.v?'on-'+o.v:''}" onclick="S.form.status='${o.v}';patchModal()">
+          <div class="sopt-icon"><i class="ti ${o.i}" style="color:${o.ic}"></i></div>
+          <div class="sopt-label">${o.v}</div>
+        </div>`).join('')}</div>
+      </div>
+      ${isT?`<div class="teste-zone">
+        <div class="field-row">
+          <div class="field"><label>Data de início</label><input type="date" value="${f.testStartDate}" onchange="S.form.testStartDate=this.value"></div>
+          <div class="field"><label>Etapa</label><select onchange="S.form.testStep=parseInt(this.value)">${STEPS.map((s,i)=>`<option value="${i}" ${(f.testStep||0)===i?'selected':''}>${s}</option>`).join('')}</select></div>
+        </div>
+        <div class="field"><label>Notas de teste</label><textarea oninput="S.form.testNotes=this.value" placeholder="Progresso, observações...">${esc(f.testNotes||'')}</textarea></div>
+      </div>`:''}
+      <hr class="sep">
+      <div class="field"><label>Capacidades adicionais</label>
+        <div class="caps">${CAPS.map(c=>{const on=f.caps.includes(c);return`<span class="cap ${on?'on':''}" onclick="toggleCap('${c}')">${on?'<i class=\'ti ti-check\' style=\'font-size:11px\'></i>':''} ${CAP_L[c]}</span>`;}).join('')}</div>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn btn-default btn-sm" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="save()"><i class="ti ti-device-floppy"></i> Guardar</button>
+    </div>
+  </div></div>`;
+}
+
+function patchModal(){
+  const el=document.querySelector('.overlay');if(!el)return;
+  const tmp=document.createElement('div');tmp.innerHTML=modal();el.replaceWith(tmp.firstChild);
+}
+
+// ── TABS ──
+function tabs(){
+  const ap=ativos();const nom=nominal();const tst=emTeste();
+  const counts={pessoas:S.people.length,presencas:ap.length,escala:DATES.length,resumo:''};
+  return['pessoas','presencas','escala','resumo'].map(t=>{
+    const icons={pessoas:'ti-users',presencas:'ti-calendar-check',escala:'ti-calendar',resumo:'ti-chart-bar'};
+    const labels={pessoas:'Pessoas',presencas:'Presenças',escala:'Escala',resumo:'Resumo'};
+    return`<button class="tab ${S.tab===t?'active':''}" onclick="S.tab='${t}';render()">
+      <i class="ti ${icons[t]}"></i> ${labels[t]}
+      ${counts[t]!==''?`<span class="tab-count">${counts[t]}</span>`:''}
+    </button>`;
+  }).join('');
+}
+
+// ── PESSOAS ──
+function renderPessoas(){
+  const fp=filtered();const nom=nominal();const tst=emTeste();const ap=ativos();
+  const sortIcon=col=>{const s=S.sortCol===col?S.sortDir==='asc'?'↑':'↓':'';return`<span style="opacity:.5;margin-left:2px;font-size:10px">${s}</span>`};
+  const rows=fp.map(p=>{
+    const isConfDel=S.confirmDel===p.id;
+    const testActs=p.status==='Teste'?`
+      ${(p.testStep||0)<2?`<button class="btn btn-blue btn-xs" onclick="advStep(${p.id})" title="Avançar etapa"><i class="ti ti-arrow-right"></i></button>`:''}
+      <button class="btn btn-green btn-xs" onclick="conclude(${p.id})" title="Converter para Ativo"><i class="ti ti-check"></i> Ativo</button>`:'';
+    const delPart=isConfDel
+      ?`<div class="del-confirm"><span>Tens a certeza?</span><button class="btn btn-red btn-xs" onclick="del(${p.id})">Confirmar</button><button class="btn btn-default btn-xs" onclick="S.confirmDel=null;render()">Não</button></div>`
+      :`<button class="btn btn-default btn-xs" onclick="S.confirmDel=${p.id};render()" title="Remover"><i class="ti ti-trash"></i></button>`;
+    return`<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="av ${avCls(p)}">${ini(p.name)}</div>
+        <div>
+          <div style="font-weight:500;font-size:13px">${esc(p.name)}</div>
+          ${p.status==='Teste'&&p.testStartDate?`<div style="font-size:11px;color:var(--text3)">Início: ${p.testStartDate}</div>`:''}
+          ${p.notes?`<div style="font-size:11px;color:var(--text3)">${esc(p.notes)}</div>`:''}
+          ${p.status==='Teste'?`<div style="margin-top:3px">${dots(p.testStep||0)}</div>`:''}
+        </div>
+      </div></td>
+      <td><span class="badge ${coCls(p.company)}">${p.company}</span></td>
+      <td><span class="badge b-gray">${p.role}</span></td>
+      <td>${statusBadge(p)}</td>
+      <td style="max-width:130px">${p.caps.map(c=>`<span class="badge b-blue" style="font-size:10px;margin:1px">${c.replace('Can_','')}</span>`).join('')||'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+        ${testActs}
+        <button class="btn btn-default btn-xs" onclick="openEdit(S.people.find(p=>p.id===${p.id}))"><i class="ti ti-edit"></i> Editar</button>
+        ${delPart}
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  return`
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Total</div><div class="metric-val">${S.people.length}</div></div>
+      <div class="metric"><div class="metric-label">Ativos</div><div class="metric-val m-green">${nom.length}</div></div>
+      <div class="metric"><div class="metric-label">Em Teste</div><div class="metric-val m-purple">${tst.length}</div></div>
+      <div class="metric"><div class="metric-label">Inativos</div><div class="metric-val m-red">${S.people.filter(p=>p.status==='Inativo').length}</div></div>
+      <div class="metric"><div class="metric-label">Timing</div><div class="metric-val m-blue">${ap.filter(p=>p.company==='Timing').length}</div></div>
+      <div class="metric"><div class="metric-label">Talenter</div><div class="metric-val m-green">${ap.filter(p=>p.company==='Talenter').length}</div></div>
+      <div class="metric"><div class="metric-label">Serlima</div><div class="metric-val m-coral">${ap.filter(p=>p.company==='Serlima').length}</div></div>
+    </div>
+    <div class="toolbar">
+      <input type="text" placeholder="Pesquisar nome..." value="${esc(S.search)}" oninput="S.search=this.value;render()">
+      <div class="chips">
+        ${['all','Ativo','Teste','Inativo'].map(v=>`<span class="chip ${S.filterStatus===v?'on':''}" onclick="S.filterStatus='${v}';render()">${v==='all'?'Todos':v}</span>`).join('')}
+        ${COMPANIES.map(c=>`<span class="chip ${S.filterCompany===c?'on':''}" onclick="S.filterCompany=S.filterCompany==='${c}'?'all':'${c}';render()">${c}</span>`).join('')}
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px">
+        <button class="btn btn-primary btn-sm" onclick="openAdd()"><i class="ti ti-plus"></i> Adicionar</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th class="sortable" onclick="setSort('name')">Nome${sortIcon('name')}</th>
+          <th class="sortable" onclick="setSort('company')">Empresa${sortIcon('company')}</th>
+          <th class="sortable" onclick="setSort('role')">Função${sortIcon('role')}</th>
+          <th class="sortable" onclick="setSort('status')">Estado${sortIcon('status')}</th>
+          <th>Capacidades</th>
+          <th>Ações</th>
+        </tr></thead>
+        <tbody>${fp.length?rows:`<tr><td colspan="6"><div class="empty"><i class="ti ti-user-off"></i>Nenhum resultado para os filtros actuais.</div></td></tr>`}</tbody>
+      </table>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-top:8px;text-align:right">${fp.length} de ${S.people.length} pessoas</div>`;
+}
+
+// ── PRESENÇAS ──
+function renderPresencas(){
+  const ap=ativos();
+  const dH=DATES.map(d=>{
+    const isT=d===TODAY;
+    return`<th style="font-size:10px;padding:4px 3px;text-align:center;min-width:30px;${isT?'background:#E6F1FB;color:#0C447C;border-radius:4px':''}">${d.slice(8)}<br>${dl(d)}</th>`;
+  }).join('');
+  const rows=ap.map(p=>{
+    const cells=DATES.map(d=>{
+      const a=getAtt(p.id,d);const isT=d===TODAY;
+      return`<td style="padding:2px 2px;text-align:center"><button class="att-btn ${a||''} ${isT?'att-today':''}" onclick="cycleAtt(${p.id},'${d}')" title="${d}">${a||'·'}</button></td>`;
+    }).join('');
+    const pr=DATES.filter(d=>getAtt(p.id,d)==='P').length;
+    const ab=DATES.filter(d=>getAtt(p.id,d)==='F').length;
+    const rate=(pr+ab)>0?Math.round(pr/(pr+ab)*100):null;
+    return`<tr>
+      <td style="white-space:nowrap;padding-right:8px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="av av-sm ${avCls(p)}">${ini(p.name)}</div>
+          <span style="font-size:12px;font-weight:500">${esc(p.name.split(' ')[0])}</span>
+          ${p.status==='Teste'?`<span class="badge b-purple" style="font-size:9px;padding:1px 5px">T</span>`:''}
+        </div>
+      </td>
+      ${cells}
+      <td style="white-space:nowrap;padding-left:8px">
+        <span class="badge ${pr>0?'b-green':'b-gray'}">${pr}P</span>
+        <span class="badge ${ab>0?'b-red':'b-gray'}" style="margin-left:3px">${ab}F</span>
+        ${rate!==null?`<span style="font-size:11px;color:var(--text3);margin-left:4px">${rate}%</span>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  return`
+    <div class="info-row">
+      <span class="badge b-green">P</span> Presente &nbsp;
+      <span class="badge b-red">F</span> Falta &nbsp;
+      <span class="badge b-amber">D</span> Folga
+      <span style="color:var(--text3)">— clique para alternar. Borda azul = hoje.</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--text3)">${ap.length} pessoas · ${DATES.length} dias</span>
+    </div>
+    <div style="overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border)">
+      <table style="min-width:800px">
+        <thead><tr><th style="min-width:120px">Pessoa</th>${dH}<th style="min-width:90px">Resumo</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── ESCALA ──
+function renderEscala(){
+  const nom=nominal();const tst=emTeste();
+  const totalWeeks=Math.ceil(DATES.length/7);
+  const weekStart=S.weekIdx*7;const weekEnd=Math.min(weekStart+7,DATES.length);
+  const weekDates=DATES.slice(weekStart,weekEnd);
+  const wLabel=`${weekDates[0]} — ${weekDates[weekDates.length-1]}`;
+
+  const dayCards=weekDates.map(d=>{
+    const need=NEEDS[d]||0;const bal=nom.length-need;
+    const balCls=bal<0?'b-red':bal<5?'b-amber':'b-green';
+    const isToday=d===TODAY;
+    const morning=nom.filter(p=>p.role!=='Turndown');
+    const afternoon=nom.filter(p=>p.role==='Turndown'||p.role==='Valete');
+    const personRow=p=>`<div class="shift-person"><div class="av av-sm ${avCls(p)}">${ini(p.name)}</div>${esc(p.name.split(' ').slice(0,2).join(' '))}</div>`;
+    return`<div class="day-card ${isToday?'today':''}">
+      <div class="day-card-header" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'">
+        <div style="display:flex;align-items:baseline;gap:2px">
+          <span class="day-date">${d.slice(5)}</span>
+          <span class="day-weekday">${dlFull(d)}</span>
+          ${isToday?`<span class="badge b-blue" style="font-size:10px;margin-left:6px">Hoje</span>`:''}
+        </div>
+        <div class="day-badges">
+          <span style="font-size:12px;color:var(--text3)">Need <b style="color:var(--text)">${need}</b></span>
+          <span class="badge ${balCls}">${bal>0?'+':''}${bal}</span>
+          ${tst.length>0?`<span class="badge b-purple">${tst.length}T</span>`:''}
+          <i class="ti ti-chevron-down" style="font-size:14px;color:var(--text3)"></i>
+        </div>
+      </div>
+      <div class="day-card-body">
+        <div class="shift-block">
+          <div class="shift-title" style="color:#185FA5"><i class="ti ti-sun"></i> Manhã 07:30</div>
+          ${morning.length?morning.map(personRow).join(''):` <div style="font-size:11px;color:var(--text3)">—</div>`}
+        </div>
+        <div class="shift-block">
+          <div class="shift-title" style="color:#854F0B"><i class="ti ti-moon"></i> Tarde 14:30</div>
+          ${afternoon.length?afternoon.map(personRow).join(''):`<div style="font-size:11px;color:var(--text3)">—</div>`}
+        </div>
+        <div class="shift-block" style="border:1px solid #AFA9EC">
+          <div class="shift-title" style="color:#534AB7"><i class="ti ti-flask"></i> Em Teste</div>
+          ${tst.length?tst.map(p=>`<div class="shift-person"><div class="av av-sm av-teste">${ini(p.name)}</div><span>${esc(p.name.split(' ')[0])}</span><span class="badge b-purple" style="font-size:9px;margin-left:auto">${STEPS[p.testStep||0].slice(0,3)}</span></div>`).join(''):`<div style="font-size:11px;color:var(--text3)">—</div>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return`
+    <div class="escala-nav">
+      <button class="btn btn-default btn-sm" onclick="S.weekIdx=Math.max(0,S.weekIdx-1);render()" ${S.weekIdx===0?'disabled':''}><i class="ti ti-chevron-left"></i> Anterior</button>
+      <div class="week-label">${wLabel}</div>
+      <button class="btn btn-default btn-sm" onclick="S.weekIdx=Math.min(${totalWeeks-1},S.weekIdx+1);render()" ${S.weekIdx>=totalWeeks-1?'disabled':''}>Seguinte <i class="ti ti-chevron-right"></i></button>
+      <div style="margin-left:auto;display:flex;gap:4px">
+        ${Array.from({length:totalWeeks},(_,i)=>`<button class="btn ${S.weekIdx===i?'btn-primary':'btn-default'} btn-xs" onclick="S.weekIdx=${i};render()">S${i+1}</button>`).join('')}
+      </div>
+    </div>
+    ${dayCards}`;
+}
+
+// ── RESUMO ──
+function renderResumo(){
+  const ap=ativos();const nom=nominal();const tst=emTeste();
+  const totalP=ap.reduce((a,p)=>a+DATES.filter(d=>getAtt(p.id,d)==='P').length,0);
+  const totalF=ap.reduce((a,p)=>a+DATES.filter(d=>getAtt(p.id,d)==='F').length,0);
+  const reg=totalP+totalF;const rate=reg>0?Math.round(totalP/reg*100):0;
+  const worst=DATES.map(d=>({d,gap:(NEEDS[d]||0)-nom.length})).filter(x=>x.gap>0).sort((a,b)=>b.gap-a.gap).slice(0,5);
+  const best=DATES.map(d=>({d,surplus:nom.length-(NEEDS[d]||0)})).filter(x=>x.surplus>=0).sort((a,b)=>b.surplus-a.surplus).slice(0,3);
+
+  return`
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Ativos</div><div class="metric-val">${ap.length}</div></div>
+      <div class="metric"><div class="metric-label">Nominais</div><div class="metric-val m-green">${nom.length}</div></div>
+      <div class="metric"><div class="metric-label">Em Teste</div><div class="metric-val m-purple">${tst.length}</div></div>
+      <div class="metric"><div class="metric-label">Taxa presença</div><div class="metric-val ${rate>=80?'m-green':rate>=60?'m-amber':'m-red'}">${rate}%</div></div>
+      <div class="metric"><div class="metric-label">Presenças reg.</div><div class="metric-val m-green">${totalP}</div></div>
+      <div class="metric"><div class="metric-label">Faltas reg.</div><div class="metric-val m-red">${totalF}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
+      <div>
+        <div class="section-hd">Por empresa</div>
+        ${COMPANIES.map(co=>{const n=ap.filter(p=>p.company===co).length;const pct=ap.length?Math.round(n/ap.length*100):0;const col=co==='Timing'?'#378ADD':co==='Serlima'?'#D85A30':'#1D9E75';return`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px"><span style="font-weight:500">${co}</span><span style="color:var(--text3)">${n} (${pct}%)</span></div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${col}"></div></div></div>`;}).join('')}
+      </div>
+      <div>
+        <div class="section-hd">Etapas de teste</div>
+        ${tst.length===0?`<div style="font-size:13px;color:var(--text3)">Sem pessoas em teste.</div>`:STEPS.map((s,i)=>{const n=tst.filter(p=>(p.testStep||0)===i).length;return`<div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:500">${s}</span><span class="badge b-purple">${n}</span></div>`;}).join('')}
+      </div>
+      <div>
+        <div class="section-hd">Dias com folga suficiente</div>
+        ${best.length===0?`<div style="font-size:12px;color:var(--text3)">—</div>`:best.map(x=>`<div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:12px"><span>${x.d} (${dl(x.d)})</span><span class="badge b-green">+${x.surplus}</span></div>`).join('')}
+      </div>
+    </div>
+    ${tst.length>0?`<div class="section-hd">Pessoas em teste</div>
+    <div class="table-wrap" style="margin-bottom:20px"><table><thead><tr><th>Nome</th><th>Empresa</th><th>Etapa</th><th>Progresso</th><th>Início</th></tr></thead><tbody>
+      ${tst.map(p=>`<tr><td style="font-weight:500">${esc(p.name)}</td><td><span class="badge ${coCls(p.company)}">${p.company}</span></td><td><span class="badge b-purple">${STEPS[p.testStep||0]}</span></td><td>${dots(p.testStep||0)}</td><td style="font-size:12px;color:var(--text3)">${p.testStartDate||'—'}</td></tr>`).join('')}
+    </tbody></table></div>`:''}
+    <div class="section-hd">Dias críticos (necessidade > nominais)</div>
+    ${worst.length===0?`<div style="font-size:13px;color:var(--text3);padding:8px 0">Sem dias críticos com o grupo atual. ✓</div>`:
+    `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Dia</th><th>Necessidade</th><th>Nominais</th><th>Gap</th></tr></thead><tbody>
+      ${worst.map(x=>`<tr><td style="font-weight:500">${x.d}</td><td>${dlFull(x.d)}</td><td>${NEEDS[x.d]}</td><td>${nom.length}</td><td><span class="badge b-red">−${x.gap}</span></td></tr>`).join('')}
+    </tbody></table></div>`}`;
+}
+
+// ── TOPBAR ──
+function renderTopbar(){
+  document.getElementById('topbar-actions').innerHTML=`
+    <button class="btn btn-default btn-sm" onclick="buildExcel()" title="Exportar Excel"><i class="ti ti-file-spreadsheet" style="color:#217346"></i> Excel</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearState()" title="Limpar dados guardados" style="color:var(--text3)"><i class="ti ti-trash"></i> Limpar dados</button>
+  `;
+}
+
+// ── MAIN RENDER ──
+function render(){
+  const root=document.getElementById('root');
+  let content='';
+  if(S.tab==='pessoas') content=renderPessoas();
+  else if(S.tab==='presencas') content=renderPresencas();
+  else if(S.tab==='escala') content=renderEscala();
+  else if(S.tab==='resumo') content=renderResumo();
+
+  root.innerHTML=`
+    ${!S.hasSaved?`<div class="no-saved"><i class="ti ti-info-circle"></i> Dados iniciais carregados. As alterações são guardadas automaticamente no browser.<div class="storage-btns"><button class="btn btn-amber btn-xs" onclick="S.hasSaved=true;saveState();render()"><i class="ti ti-check"></i> OK</button></div></div>`:''}
+    <div class="tabs">${tabs()}</div>
+    ${S.tab!=='escala'?exportBar():''}
+    ${content}
+    ${modal()}`;
+  renderTopbar();
+}
+
+// ── KEYBOARD ──
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.modal){closeModal()}});
+
+// ── GLOBALS ──
+window.openAdd=openAdd;window.openEdit=openEdit;window.closeModal=closeModal;window.save=save;
+window.del=del;window.advStep=advStep;window.conclude=conclude;window.cycleAtt=cycleAtt;
+window.setSort=setSort;window.buildExcel=buildExcel;window.clearState=clearState;
+window.patchModal=patchModal;
+window.toggleCap=c=>{const i=S.form.caps.indexOf(c);if(i>=0)S.form.caps.splice(i,1);else S.form.caps.push(c);patchModal()};
+
+render();
+</script>
+</body>
+</html>
