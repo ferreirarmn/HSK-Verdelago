@@ -546,16 +546,23 @@ async function graphBootstrap() {
   SYNC.listPresencasId = lpr.id;
 
   // 3. Mapear nomes lógicos → nomes internos dos campos (que podem ter prefixos OData_)
-  const cols = await graph(`/sites/${SYNC.siteId}/lists/${SYNC.listPessoasId}/columns?$select=name,displayName`);
+  const cols = await graph(`/sites/${SYNC.siteId}/lists/${SYNC.listPessoasId}/columns?$select=name,displayName,readOnly,columnGroup`);
+  // Filtra campos virtuais/computed que não se podem escrever (LinkTitle, LinkTitleNoMenu, etc.)
+  const writableCols = cols.value.filter(c => !c.readOnly && !/^(Link|_)/.test(c.name));
   const fm = {};
   const wanted = ['Nome','Empresa','Função','Estado','Capacidades','Notas','Etapa Teste','Início Teste','Notas Teste','PessoaIDLocal'];
   for (const w of wanted) {
-    const c = cols.value.find(c => c.displayName === w || c.name === w);
+    // Procura primeiro por displayName, depois por name, sempre nas escrita-permitidas
+    const c = writableCols.find(c => c.displayName === w) || writableCols.find(c => c.name === w);
     if (c) fm[w] = c.name;
   }
-  // Nome é "Title" por defeito no SharePoint mesmo após renomear o display
+  // "Nome" mapeia sempre para Title (que é a coluna obrigatória da lista, mesmo que o displayName tenha sido renomeado)
+  // Se não encontrámos uma coluna explícita "Nome", usa Title; se encontrámos uma coluna "Nome" SEPARADA, ainda assim
+  // o Title continua a ser obrigatório no SharePoint — convém escrever em ambos.
+  fm['Title'] = 'Title';
   if (!fm['Nome']) fm['Nome'] = 'Title';
   SYNC.fieldMap = fm;
+  console.log('Field mapping resolved:', fm);
 
   // 4. Ler dados iniciais
   await graphReload();
@@ -589,7 +596,10 @@ function spItemToPerson(item) {
 function personToSpFields(p) {
   const m = SYNC.fieldMap;
   const o = {};
-  o[m['Nome']] = p.name;
+  // Title é sempre obrigatório no SharePoint, escrevemos sempre lá
+  o['Title'] = p.name;
+  // Se "Nome" mapeia para uma coluna DIFERENTE de Title (coluna separada), escreve também
+  if (m['Nome'] && m['Nome'] !== 'Title') o[m['Nome']] = p.name;
   if (m['Empresa']) o[m['Empresa']] = p.company;
   if (m['Função']) o[m['Função']] = p.role;
   if (m['Estado']) o[m['Estado']] = p.status;
@@ -676,15 +686,24 @@ async function flushWrites() {
   SYNC.writeQueue.clear();
   SYNC.status = 'syncing'; renderTopbar();
   let errors = 0;
+  let firstError = '';
   for (const fn of jobs) {
     try { await fn(); }
-    catch (e) { errors++; console.error('Write falhou:', e); }
+    catch (e) {
+      errors++;
+      console.error('Write falhou:', e);
+      if (!firstError) {
+        // Extrai mensagem útil da resposta Graph
+        const m = String(e.message||'').match(/"message":"([^"]+)"/);
+        firstError = m ? m[1] : (e.message || 'erro desconhecido').slice(0,200);
+      }
+    }
   }
   SYNC.status = errors ? 'error' : 'connected';
-  SYNC.errorMsg = errors ? `${errors} alteração(ões) falharam.` : '';
+  SYNC.errorMsg = errors ? `${errors} alteração(ões) falharam. Causa: ${firstError}` : '';
   SYNC.lastSyncAt = Date.now();
   renderTopbar();
-  if (errors) toast(`${errors} alteração(ões) falharam. Verifica a tua ligação.`, 'err');
+  if (errors) toast(`Falhou: ${firstError}`, 'err');
 }
 
 // Dispara write para pessoa (upsert ou delete)
