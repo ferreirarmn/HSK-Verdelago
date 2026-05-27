@@ -321,9 +321,28 @@ const CAP_L={'Can_Supervisão':'Supervisão','Can_Andares2':'Andares 2','Can_Ár
 const ROLES=['Andares','Valete','Turndown','Áreas','Governanta'];
 const COMPANIES=['Timing','Talenter','Serlima'];
 const STEPS=['Integração','Avaliação','Conclusão'];
-const DATES=['2026-05-11','2026-05-12','2026-05-13','2026-05-14','2026-05-15','2026-05-16','2026-05-17','2026-05-18','2026-05-19','2026-05-20','2026-05-21','2026-05-22','2026-05-23','2026-05-24','2026-05-25','2026-05-26','2026-05-27','2026-05-28','2026-05-29','2026-05-30','2026-05-31'];
-const NEEDS={'2026-05-11':6,'2026-05-12':10,'2026-05-13':6,'2026-05-14':9,'2026-05-15':9,'2026-05-16':13,'2026-05-17':13,'2026-05-18':13,'2026-05-19':9,'2026-05-20':10,'2026-05-21':13,'2026-05-22':13,'2026-05-23':15,'2026-05-24':13,'2026-05-25':13,'2026-05-26':14,'2026-05-27':14,'2026-05-28':12,'2026-05-29':17,'2026-05-30':27,'2026-05-31':28};
-const TODAY='2026-05-19';
+// ── DATAS DINÂMICAS POR MÊS SELECIONADO ──
+// pad zero
+const pad2=n=>String(n).padStart(2,'0');
+// "YYYY-MM-DD" do dia de hoje (local)
+const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`};
+const TODAY=todayISO();
+// Lista de dias do mês (ex.: ano=2026, mes=5 → ['2026-05-01', ..., '2026-05-31'])
+function datesOfMonth(year,month){
+  const out=[];
+  const last=new Date(year,month,0).getDate(); // último dia
+  for(let d=1;d<=last;d++) out.push(`${year}-${pad2(month)}-${pad2(d)}`);
+  return out;
+}
+// NEEDS continua a ser um mapa por dia (legacy: para Maio 2026 ainda hardcoded; outros meses ficam 0)
+const NEEDS_LEGACY={'2026-05-11':6,'2026-05-12':10,'2026-05-13':6,'2026-05-14':9,'2026-05-15':9,'2026-05-16':13,'2026-05-17':13,'2026-05-18':13,'2026-05-19':9,'2026-05-20':10,'2026-05-21':13,'2026-05-22':13,'2026-05-23':15,'2026-05-24':13,'2026-05-25':13,'2026-05-26':14,'2026-05-27':14,'2026-05-28':12,'2026-05-29':17,'2026-05-30':27,'2026-05-31':28};
+// Permite override por mês (futuro: editar via UI)
+const NEEDS_OVERRIDES={};
+function getNeed(d){
+  return (NEEDS_OVERRIDES[d] !== undefined) ? NEEDS_OVERRIDES[d] : (NEEDS_LEGACY[d] || 0);
+}
+// Compatibilidade: objeto NEEDS que se comporta como antes mas é gerado on-the-fly
+const NEEDS=new Proxy({}, { get:(_,k)=> (typeof k==='string' ? getNeed(k) : undefined) });
 
 const SEED=[
   {id:1,name:"Viviana Cá",company:"Talenter",role:"Andares",status:"Ativo",caps:['Can_Andares2'],notes:"",testStep:0,testStartDate:"",testNotes:""},
@@ -835,9 +854,18 @@ function openSyncModal(){ S.syncModal=true; render() }
 function closeSyncModal(){ S.syncModal=false; render() }
 
 // ── STATE ──
+// DATES é dinâmico — recalculado quando S.viewYear/viewMonth mudam
+let DATES = [];
+function recomputeDates(){
+  DATES = datesOfMonth(S.viewYear, S.viewMonth);
+}
+
 const saved=loadState();
+const _now=new Date();
 let S={
   tab:'pessoas',
+  viewYear: _now.getFullYear(),
+  viewMonth: _now.getMonth()+1,
   people:saved?saved.people:JSON.parse(JSON.stringify(SEED)),
   nextId:saved?saved.nextId:61,
   attendance:saved?saved.attendance:{},
@@ -845,10 +873,41 @@ let S={
   filterStatus:'all',filterCompany:'all',
   modal:false,syncModal:false,editId:null,form:blankForm(),
   confirmDel:null,
-  weekIdx:Math.max(0,Math.floor(DATES.indexOf(TODAY)/7)),
+  weekIdx:0,
   exportSheets:{pessoas:true,presencas:true,escala:true,resumo:true},
   hasSaved:!!saved
 };
+recomputeDates();
+// weekIdx: tenta apontar para a semana que contém hoje, se for o mês atual
+{
+  const todayIdx=DATES.indexOf(TODAY);
+  S.weekIdx = todayIdx>=0 ? Math.floor(todayIdx/7) : 0;
+}
+
+// Navegação de mês — usado pela aba Presenças
+function changeMonth(delta){
+  let y=S.viewYear, m=S.viewMonth+delta;
+  while(m<1){m+=12;y--;}
+  while(m>12){m-=12;y++;}
+  S.viewYear=y; S.viewMonth=m;
+  recomputeDates();
+  // Reset semana ao mudar mês: se contém hoje, vai para a semana de hoje; senão semana 0
+  const todayIdx=DATES.indexOf(TODAY);
+  S.weekIdx = todayIdx>=0 ? Math.floor(todayIdx/7) : 0;
+  render();
+}
+function goToday(){
+  const n=new Date();
+  S.viewYear=n.getFullYear(); S.viewMonth=n.getMonth()+1;
+  recomputeDates();
+  const todayIdx=DATES.indexOf(TODAY);
+  S.weekIdx = todayIdx>=0 ? Math.floor(todayIdx/7) : 0;
+  render();
+}
+function monthLabel(){
+  const meses=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return `${meses[S.viewMonth-1]} ${S.viewYear}`;
+}
 
 // ── QUERIES ──
 const getAtt=(pid,d)=>S.attendance[`${pid}_${d}`]||null;
@@ -927,7 +986,7 @@ function buildExcel(){
     const ap=ativos();const nom=nominal();const tst=emTeste();const rows=[{S:'RESUMO',C:'Total pessoas',V:S.people.length},{S:'',C:'Ativos',V:ap.length},{S:'',C:'Nominais',V:nom.length},{S:'',C:'Teste',V:tst.length},{S:'',C:'Timing',V:ap.filter(p=>p.company==='Timing').length},{S:'',C:'Talenter',V:ap.filter(p=>p.company==='Talenter').length},{S:'',C:'Serlima',V:ap.filter(p=>p.company==='Serlima').length},{S:'TESTE',C:'',V:''},...tst.map(p=>({S:'',C:p.name,V:`${p.company} | ${STEPS[p.testStep||0]} | ${p.testStartDate||'—'}`})),{S:'CRÍTICOS',C:'',V:''},...DATES.map(d=>({d,gap:(NEEDS[d]||0)-nom.length})).filter(x=>x.gap>0).map(x=>({S:'',C:x.d+' ('+dlFull(x.d)+')',V:`Need ${NEEDS[x.d]} | Nom ${nom.length} | Gap -${x.gap}`}))];
     const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:14},{wch:24},{wch:36}];XLSX.utils.book_append_sheet(wb,ws,'Resumo');
   }
-  XLSX.writeFile(wb,`HSK_${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel exportado.','ok');
+  XLSX.writeFile(wb,`HSK_${S.viewYear}-${pad2(S.viewMonth)}_${new Date().toISOString().slice(0,10)}.xlsx`);toast('Excel exportado.','ok');
 }
 
 // ── RENDER HELPERS ──
@@ -1118,16 +1177,26 @@ function renderPresencas(){
     </tr>`;
   }).join('');
 
+  // Determinar se "Hoje" é relevante (apenas se não estamos no mês de hoje)
+  const n=new Date();
+  const isCurrentMonth = (S.viewYear===n.getFullYear() && S.viewMonth===(n.getMonth()+1));
+
   return`
-    <div class="toolbar">
-      <input type="text" id="search-presencas" placeholder="Pesquisar nome ou apelido (ex: 'Ana Silva', 'Sil')..." value="${esc(S.searchPres)}" oninput="S.searchPres=this.value;render()">
+    <div class="toolbar" style="flex-wrap:wrap;gap:8px">
+      <div class="month-nav" style="display:flex;align-items:center;gap:4px">
+        <button class="btn btn-default btn-icon btn-sm" onclick="changeMonth(-1)" title="Mês anterior"><i class="ti ti-chevron-left"></i></button>
+        <div style="min-width:140px;text-align:center;font-weight:600;font-size:13px;padding:0 6px">${esc(monthLabel())}</div>
+        <button class="btn btn-default btn-icon btn-sm" onclick="changeMonth(1)" title="Mês seguinte"><i class="ti ti-chevron-right"></i></button>
+        ${!isCurrentMonth?`<button class="btn btn-ghost btn-sm" onclick="goToday()" title="Voltar ao mês atual" style="margin-left:4px"><i class="ti ti-calendar-event"></i> Hoje</button>`:''}
+      </div>
+      <input type="text" id="search-presencas" placeholder="Pesquisar nome ou apelido..." value="${esc(S.searchPres)}" oninput="S.searchPres=this.value;render()" style="flex:1;min-width:180px">
       ${S.searchPres?`<button class="btn btn-ghost btn-sm" onclick="S.searchPres='';render()" title="Limpar pesquisa"><i class="ti ti-x"></i> Limpar</button>`:''}
     </div>
     <div class="info-row">
       <span class="badge b-green">P</span> Presente &nbsp;
       <span class="badge b-red">F</span> Falta &nbsp;
       <span class="badge b-amber">D</span> Folga
-      <span style="color:var(--text3)">— clique para alternar. Borda azul = hoje.</span>
+      <span style="color:var(--text3)">— clique para alternar.${isCurrentMonth?' Borda azul = hoje.':''}</span>
       <span style="margin-left:auto;font-size:11px;color:var(--text3)">${S.searchPres?`${ap.length} de ${apAll.length}`:ap.length} pessoas · ${DATES.length} dias</span>
     </div>
     <div style="overflow-x:auto;border-radius:var(--radius-lg);border:1px solid var(--border)">
@@ -1184,7 +1253,18 @@ function renderEscala(){
     </div>`;
   }).join('');
 
+  const n=new Date();
+  const isCurrentMonth = (S.viewYear===n.getFullYear() && S.viewMonth===(n.getMonth()+1));
+
   return`
+    <div class="toolbar" style="flex-wrap:wrap;gap:8px;margin-bottom:6px">
+      <div class="month-nav" style="display:flex;align-items:center;gap:4px">
+        <button class="btn btn-default btn-icon btn-sm" onclick="changeMonth(-1)" title="Mês anterior"><i class="ti ti-chevron-left"></i></button>
+        <div style="min-width:140px;text-align:center;font-weight:600;font-size:13px;padding:0 6px">${esc(monthLabel())}</div>
+        <button class="btn btn-default btn-icon btn-sm" onclick="changeMonth(1)" title="Mês seguinte"><i class="ti ti-chevron-right"></i></button>
+        ${!isCurrentMonth?`<button class="btn btn-ghost btn-sm" onclick="goToday()" title="Voltar ao mês atual" style="margin-left:4px"><i class="ti ti-calendar-event"></i> Hoje</button>`:''}
+      </div>
+    </div>
     <div class="escala-nav">
       <button class="btn btn-default btn-sm" onclick="S.weekIdx=Math.max(0,S.weekIdx-1);render()" ${S.weekIdx===0?'disabled':''}><i class="ti ti-chevron-left"></i> Anterior</button>
       <div class="week-label">${wLabel}</div>
@@ -1206,6 +1286,11 @@ function renderResumo(){
   const best=DATES.map(d=>({d,surplus:nom.length-(NEEDS[d]||0)})).filter(x=>x.surplus>=0).sort((a,b)=>b.surplus-a.surplus).slice(0,3);
 
   return`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;color:var(--text3)">
+      <i class="ti ti-calendar"></i> <span>Dados referentes a <b style="color:var(--text)">${esc(monthLabel())}</b></span>
+      <button class="btn btn-ghost btn-xs" onclick="changeMonth(-1)" title="Mês anterior" style="margin-left:8px"><i class="ti ti-chevron-left"></i></button>
+      <button class="btn btn-ghost btn-xs" onclick="changeMonth(1)" title="Mês seguinte"><i class="ti ti-chevron-right"></i></button>
+    </div>
     <div class="metrics">
       <div class="metric"><div class="metric-label">Ativos</div><div class="metric-val">${ap.length}</div></div>
       <div class="metric"><div class="metric-label">Nominais</div><div class="metric-val m-green">${nom.length}</div></div>
