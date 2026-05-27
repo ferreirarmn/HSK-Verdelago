@@ -1,0 +1,35 @@
+{
+  "name": "HSK Verdelago — Gestão de Grupo",
+  "short_name": "HSK Verdelago",
+  "description": "Gestão de equipa de housekeeping do Hotel Verdelago — colaboradores, presenças e escalas.",
+  "id": "/HSK-Verdelago/",
+  "start_url": "/HSK-Verdelago/",
+  "scope": "/HSK-Verdelago/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#185FA5",
+  "background_color": "#F7F7F5",
+  "lang": "pt-PT",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
